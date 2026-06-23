@@ -1,0 +1,4 @@
+REPO traefik
+LOAD monk/traefik.yaml
+LOAD monk/traefik-example.yaml
+ENTRY traefik/stack-local

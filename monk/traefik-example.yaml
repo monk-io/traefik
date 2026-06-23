@@ -1,0 +1,89 @@
+namespace: traefik
+
+whoami:
+  defines: runnable
+  metadata:
+    name: Traefik Whoami Backend
+    description: Public demo backend used only by the Traefik composition example.
+    tags: traefik,example,backend,http
+  variables:
+    image-tag:
+      type: string
+      value: v1.10.3
+      description: Public traefik/whoami Docker image tag to run for the example backend.
+  containers:
+    whoami:
+      image: traefik/whoami
+      image-tag: <- $image-tag
+  services:
+    http:
+      container: whoami
+      port: 80
+      protocol: tcp
+      publish: false
+      description: Internal HTTP service consumed by the Traefik example proxy.
+example:
+  defines: runnable
+  inherits: traefik/proxy-local
+  metadata:
+    name: Traefik Whoami Router Example
+    description: Traefik component example that inherits the base proxy and routes to a connected whoami backend.
+    tags: traefik,example,composition,reverse-proxy
+  variables:
+    http-host-port:
+      type: int
+      value: 18082
+      description: Non-privileged host port used to verify the component routing example locally.
+    backend-host:
+      type: string
+      value: <- connection-hostname("backend")
+      env: BACKEND_HOST
+      description: Hostname of the connected downstream HTTP backend.
+    backend-port:
+      type: int
+      value: <- connection-port("backend")
+      env: BACKEND_PORT
+      description: Port of the connected downstream HTTP backend.
+  connections:
+    backend:
+      target: traefik/whoami
+      service: http
+      description: Downstream HTTP service routed by Traefik.
+  depends:
+    wait-for:
+      runnables:
+        - traefik/whoami
+      timeout: 60
+  files:
+    static-config:
+      container: traefik
+      path: /etc/traefik/traefik.yml
+      mode: 511
+      contents: |
+        entryPoints:
+          web:
+            address: ":8000"
+        ping:
+          entryPoint: web
+        api:
+          dashboard: false
+        providers:
+          file:
+            filename: /etc/traefik/dynamic/config.yml
+    dynamic-config:
+      container: traefik
+      path: /etc/traefik/dynamic/config.yml
+      mode: 511
+      contents: |
+        http:
+          routers:
+            whoami:
+              entryPoints:
+                - web
+              rule: PathPrefix(`/`)
+              service: whoami
+          services:
+            whoami:
+              loadBalancer:
+                servers:
+                  - url: "http://{{ v "backend-host" }}:{{ v "backend-port" }}"
