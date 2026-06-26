@@ -1,0 +1,72 @@
+namespace: traefik
+
+proxy:
+  defines: runnable
+  metadata:
+    name: Traefik Proxy
+    description: Traefik reverse proxy component with a secure default configuration and no baked-in downstream service.
+    tags: traefik,reverse-proxy,load-balancer,http
+  variables:
+    image-tag:
+      type: string
+      value: v3.4.3
+      description: Public Traefik Docker image tag to run.
+    http-host-port:
+      type: int
+      value: 18080
+      description: Non-privileged host port used by local flavors when the HTTP entrypoint is published.
+  containers:
+    traefik:
+      image: traefik
+      image-tag: <- $image-tag
+  services:
+    web:
+      container: traefik
+      port: 8000
+      protocol: tcp
+      publish: false
+      description: Internal HTTP entrypoint for routers and the ping endpoint.
+  files:
+    static-config:
+      container: traefik
+      path: /etc/traefik/traefik.yml
+      mode: 511
+      contents: |
+        entryPoints:
+          web:
+            address: ":8000"
+        ping:
+          entryPoint: web
+        api:
+          dashboard: false
+proxy-local:
+  defines: runnable
+  inherits: traefik/proxy
+  metadata:
+    name: Traefik Proxy Local
+    description: Local Traefik flavor that publishes the HTTP entrypoint on a non-privileged host port for verification.
+    tags: traefik,local,reverse-proxy,http
+  services:
+    web:
+      container: traefik
+      port: 8000
+      protocol: tcp
+      publish: true
+      host-port: <- $http-host-port
+      description: Locally published HTTP entrypoint serving Traefik /ping and configured routes.
+
+stack:
+  defines: runnable
+  inherits: traefik/proxy
+  metadata:
+    name: Traefik Standalone Stack
+    description: Production-oriented standalone Traefik stack with no published dashboard and no required secrets.
+    tags: traefik,standalone,production
+
+stack-local:
+  defines: runnable
+  inherits: traefik/proxy-local
+  metadata:
+    name: Traefik Standalone Local Stack
+    description: Local standalone Traefik stack that publishes only the HTTP entrypoint on a non-privileged host port.
+    tags: traefik,standalone,local
