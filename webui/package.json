@@ -75,7 +75,7 @@
     "react-helmet-async": "^2.0.4",
     "react-icons": "^5.0.1",
     "react-infinite-scroll-hook": "^4.1.1",
-    "react-router-dom": "6.30.4",
+    "react-router-dom": "6.30.6",
     "swr": "^2.2.4",
     "typescript": "^5.2.2",
     "typescript-eslint": "^8.38.0",
